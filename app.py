@@ -4,56 +4,14 @@ import os
 from docx import Document
 from docx.shared import Pt
 from datetime import datetime
+import pandas as pd
 
 st.set_page_config(page_title="ZGZO.AI Bid Generator", layout="centered")
 st.title("📄 ZGZO.AI - AI Bid Generator")
 
-# 🔘 Pricing method toggle
-use_manual = st.radio("Select Pricing Method", ["Use Markup", "Enter Prices Manually"])
-
-# 🧪 TEMP: Manual entry test data (replace with real data later)
-line_items = [
-    {"Description": "Concrete Slab", "Quantity": 100, "Unit": "sqft"},
-    {"Description": "Rebar", "Quantity": 50, "Unit": "lbs"},
-    {"Description": "Excavation", "Quantity": 200, "Unit": "cubic ft"},
-]
-
-# ✅ Manual price input logic
-manual_prices = []
-
-if use_manual == "Enter Prices Manually":
-    st.markdown("### Manual Price Entry")
-
-    for idx, item in enumerate(line_items):
-        st.write(f"**{item['Description']}**")
-
-        qty = item.get("Quantity", 1)
-        unit = item.get("Unit", "")
-        unit_price = st.number_input(
-            f"Unit Price for {item['Description']}",
-            min_value=0.0,
-            value=0.0,
-            key=f"price_{idx}"
-        )
-        total = qty * unit_price
-        st.write(f"Quantity: {qty} {unit}, Total: ${total:,.2f}")
-
-        manual_prices.append({
-            "Description": item["Description"],
-            "Quantity": qty,
-            "Unit": unit,
-            "Unit Price": unit_price,
-            "Total": total
-        })
-
-    subtotal = sum(row["Total"] for row in manual_prices)
-    tax = st.number_input("Tax %", min_value=0.0, max_value=100.0, value=8.0)
-    total_with_tax = subtotal * (1 + tax / 100)
-
-    st.markdown(f"### Subtotal: ${subtotal:,.2f}")
-    st.markdown(f"### Total with Tax: ${total_with_tax:,.2f}")
-
-# ========== GC Profile Section ==========
+# -------------------------
+# GC PROFILE SELECTION
+# -------------------------
 gc_dir = "gc_profiles"
 os.makedirs(gc_dir, exist_ok=True)
 
@@ -65,9 +23,94 @@ if not gc_files:
 else:
     selected_gc = st.selectbox("Choose GC Profile", gc_files)
 
+    # -------------------------
+    # FILE UPLOAD
+    # -------------------------
     st.subheader("2. Upload Specs or Drawings")
     uploaded_file = st.file_uploader("Upload PDF or DOCX file", type=["pdf", "docx"])
 
+    # -------------------------
+    # PRICING METHOD TOGGLE
+    # -------------------------
+    use_manual = st.radio("Select Pricing Method", ["Use Markup", "Enter Prices Manually"])
+
+    # -------------------------
+    # MARKUP CONTROL
+    # -------------------------
+    global_markup = st.number_input("Global Markup % (only used in markup mode)", min_value=0.0, value=10.0)
+
+    # TEMP FAKE DATA (replace with real extracted items later)
+    line_items = [
+        {"Description": "Concrete Slab", "Quantity": 100, "Unit": "sqft"},
+        {"Description": "Rebar", "Quantity": 50, "Unit": "lbs"},
+        {"Description": "Excavation", "Quantity": 200, "Unit": "cubic ft"},
+    ]
+
+    manual_prices = []
+
+    if use_manual == "Enter Prices Manually":
+        st.markdown("### Manual Price Entry")
+
+        for idx, item in enumerate(line_items):
+            st.write(f"**{item['Description']}**")
+
+            qty = item.get("Quantity", 1)
+            unit = item.get("Unit", "")
+            unit_price = st.number_input(
+                f"Unit Price for {item['Description']}",
+                min_value=0.0,
+                value=0.0,
+                key=f"price_{idx}"
+            )
+            total = qty * unit_price
+            st.write(f"Quantity: {qty} {unit}, Total: ${total:,.2f}")
+
+            manual_prices.append({
+                "Description": item["Description"],
+                "Quantity": qty,
+                "Unit": unit,
+                "Unit Price": unit_price,
+                "Total": total
+            })
+
+        subtotal = sum(row["Total"] for row in manual_prices)
+        tax = st.number_input("Tax %", min_value=0.0, max_value=100.0, value=8.0)
+        total_with_tax = subtotal * (1 + tax / 100)
+
+        st.markdown(f"### Subtotal: ${subtotal:,.2f}")
+        st.markdown(f"### Total with Tax: ${total_with_tax:,.2f}")
+
+        # Export to Excel
+        df = pd.DataFrame(manual_prices)
+        df["Total"] = df["Total"].round(2)
+        df["Unit Price"] = df["Unit Price"].round(2)
+
+        excel_file = df.to_csv(index=False).encode('utf-8')
+        st.download_button("📥 Download Excel", data=excel_file, file_name="ZGZO_Estimate.csv", mime="text/csv")
+
+        # Save bid
+        if st.button("💾 Save This Bid"):
+            os.makedirs("saved_bids", exist_ok=True)
+            bid_name = f"Bid_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            with open(os.path.join("saved_bids", bid_name), "w") as f:
+                json.dump(manual_prices, f, indent=2)
+            st.success(f"Bid saved as {bid_name}")
+
+        # Load bid
+        st.subheader("📂 Load Previous Bid")
+        saved_bids = os.listdir("saved_bids") if os.path.exists("saved_bids") else []
+        if saved_bids:
+            selected_bid = st.selectbox("Select a saved bid", saved_bids)
+            if st.button("Load Selected Bid"):
+                with open(os.path.join("saved_bids", selected_bid), "r") as f:
+                    manual_prices = json.load(f)
+                st.success(f"Loaded {selected_bid}")
+        else:
+            st.info("No saved bids available.")
+
+    # -------------------------
+    # GENERATE BID DOCUMENT
+    # -------------------------
     if uploaded_file and selected_gc:
         with open(os.path.join(gc_dir, selected_gc), "r") as f:
             config = json.load(f)
@@ -94,7 +137,7 @@ else:
             doc.add_page_break()
 
             doc.add_heading("Scope of Work", level=1)
-            scope_items = [
+            scope_items = [item["Description"] for item in manual_prices] if use_manual == "Enter Prices Manually" else [
                 "Division 02: Selective demolition of tile and plumbing fixtures",
                 "Division 03: New slab pour for restroom flooring",
                 "Division 09: New ceramic wall tile and paint finishes",
@@ -111,18 +154,25 @@ else:
             hdr_cells[1].text = 'Description'
             hdr_cells[2].text = 'Estimated Cost'
 
-            cost_data = [
-                ("02", "Demolition", "$5,000"),
-                ("03", "Concrete", "$12,000"),
-                ("09", "Finishes", "$8,000"),
-                ("15", "Plumbing", "$10,000"),
-                ("16", "Electrical", "$7,000")
-            ]
-            for div, desc, cost in cost_data:
-                row_cells = table.add_row().cells
-                row_cells[0].text = div
-                row_cells[1].text = desc
-                row_cells[2].text = cost
+            if use_manual == "Enter Prices Manually":
+                for idx, item in enumerate(manual_prices):
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = f"{idx+1:02}"
+                    row_cells[1].text = item["Description"]
+                    row_cells[2].text = f"${item['Total']:,.2f}"
+            else:
+                default_cost_data = [
+                    ("02", "Demolition", "$5,000"),
+                    ("03", "Concrete", "$12,000"),
+                    ("09", "Finishes", "$8,000"),
+                    ("15", "Plumbing", "$10,000"),
+                    ("16", "Electrical", "$7,000")
+                ]
+                for div, desc, cost in default_cost_data:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = div
+                    row_cells[1].text = desc
+                    row_cells[2].text = cost
 
             doc.add_heading("Project Timeline", level=1)
             doc.add_paragraph("Phase 1 – Demolition: Week 1")
