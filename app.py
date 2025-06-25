@@ -1,6 +1,8 @@
 import streamlit as st
 import json
 import os
+# 🔘 Pricing method toggle
+use_manual = st.radio("Select Pricing Method", ["Use Markup", "Enter Prices Manually"])
 from docx import Document
 from docx.shared import Pt
 from datetime import datetime
