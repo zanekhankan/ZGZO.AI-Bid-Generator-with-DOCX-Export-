@@ -8,6 +8,40 @@ line_items = [
     {"Description": "Concrete Slab", "Quantity": 100, "Unit": "sqft"},
     {"Description": "Rebar", "Quantity": 50, "Unit": "lbs"},
     {"Description": "Excavation", "Quantity": 200, "Unit": "cubic ft"},
+    manual_prices = []
+
+if use_manual == "Enter Prices Manually":
+    st.markdown("### Manual Price Entry")
+
+    for idx, item in enumerate(line_items):
+        st.write(f"**{item['Description']}**")
+
+        qty = item.get("Quantity", 1)
+        unit = item.get("Unit", "")
+        unit_price = st.number_input(
+            f"Unit Price for {item['Description']}", 
+            min_value=0.0, 
+            value=0.0, 
+            key=f"price_{idx}"
+        )
+        total = qty * unit_price
+        st.write(f"Quantity: {qty} {unit}, Total: ${total:,.2f}")
+
+        manual_prices.append({
+            "Description": item["Description"],
+            "Quantity": qty,
+            "Unit": unit,
+            "Unit Price": unit_price,
+            "Total": total
+        })
+
+    subtotal = sum(row["Total"] for row in manual_prices)
+    tax = st.number_input("Tax %", min_value=0.0, max_value=100.0, value=8.0)
+    total_with_tax = subtotal * (1 + tax / 100)
+
+    st.markdown(f"### Subtotal: ${subtotal:,.2f}")
+    st.markdown(f"### Total with Tax: ${total_with_tax:,.2f}")
+
 from docx import Document
 from docx.shared import Pt
 from datetime import datetime
