@@ -1,11 +1,26 @@
 import streamlit as st
 import json
 import os
+from docx import Document
+from docx.shared import Pt
+from datetime import datetime
+
+st.set_page_config(page_title="ZGZO.AI Bid Generator", layout="centered")
+st.title("📄 ZGZO.AI - AI Bid Generator")
+
 # 🔘 Pricing method toggle
 use_manual = st.radio("Select Pricing Method", ["Use Markup", "Enter Prices Manually"])
-# 🧪 Test line items (replace later with real bid data)
+
+# 🧪 TEMP: Manual entry test data (replace with real data later)
 line_items = [
-    manual_prices = []
+    {"Description": "Concrete Slab", "Quantity": 100, "Unit": "sqft"},
+    {"Description": "Rebar", "Quantity": 50, "Unit": "lbs"},
+    {"Description": "Excavation", "Quantity": 200, "Unit": "cubic ft"},
+]
+
+# ✅ Manual price input logic
+manual_prices = []
+
 if use_manual == "Enter Prices Manually":
     st.markdown("### Manual Price Entry")
 
@@ -15,9 +30,9 @@ if use_manual == "Enter Prices Manually":
         qty = item.get("Quantity", 1)
         unit = item.get("Unit", "")
         unit_price = st.number_input(
-            f"Unit Price for {item['Description']}", 
-            min_value=0.0, 
-            value=0.0, 
+            f"Unit Price for {item['Description']}",
+            min_value=0.0,
+            value=0.0,
             key=f"price_{idx}"
         )
         total = qty * unit_price
@@ -38,18 +53,10 @@ if use_manual == "Enter Prices Manually":
     st.markdown(f"### Subtotal: ${subtotal:,.2f}")
     st.markdown(f"### Total with Tax: ${total_with_tax:,.2f}")
 
-from docx import Document
-from docx.shared import Pt
-from datetime import datetime
-
-st.set_page_config(page_title="ZGZO.AI Bid Generator", layout="centered")
-st.title("📄 ZGZO.AI - AI Bid Generator")
-
-# Ensure gc_profiles directory exists
+# ========== GC Profile Section ==========
 gc_dir = "gc_profiles"
 os.makedirs(gc_dir, exist_ok=True)
 
-# Load available GC profiles
 st.subheader("1. Select GC Profile")
 gc_files = [f for f in os.listdir(gc_dir) if f.endswith("_config.json")]
 
@@ -58,12 +65,10 @@ if not gc_files:
 else:
     selected_gc = st.selectbox("Choose GC Profile", gc_files)
 
-    # Upload spec or plan file
     st.subheader("2. Upload Specs or Drawings")
     uploaded_file = st.file_uploader("Upload PDF or DOCX file", type=["pdf", "docx"])
 
     if uploaded_file and selected_gc:
-        # Load GC config
         with open(os.path.join(gc_dir, selected_gc), "r") as f:
             config = json.load(f)
 
@@ -142,6 +147,7 @@ else:
 
             output_path = "ZGZO_AI_Bid_Output.docx"
             doc.save(output_path)
+
             with open(output_path, "rb") as file:
                 st.download_button(
                     label="Download Bid Document",
