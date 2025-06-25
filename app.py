@@ -3,6 +3,11 @@ import json
 import os
 # 🔘 Pricing method toggle
 use_manual = st.radio("Select Pricing Method", ["Use Markup", "Enter Prices Manually"])
+# 🧪 Test line items (replace later with real bid data)
+line_items = [
+    {"Description": "Concrete Slab", "Quantity": 100, "Unit": "sqft"},
+    {"Description": "Rebar", "Quantity": 50, "Unit": "lbs"},
+    {"Description": "Excavation", "Quantity": 200, "Unit": "cubic ft"},
 from docx import Document
 from docx.shared import Pt
 from datetime import datetime
