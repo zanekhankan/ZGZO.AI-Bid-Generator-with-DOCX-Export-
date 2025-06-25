@@ -5,11 +5,7 @@ import os
 use_manual = st.radio("Select Pricing Method", ["Use Markup", "Enter Prices Manually"])
 # 🧪 Test line items (replace later with real bid data)
 line_items = [
-    {"Description": "Concrete Slab", "Quantity": 100, "Unit": "sqft"},
-    {"Description": "Rebar", "Quantity": 50, "Unit": "lbs"},
-    {"Description": "Excavation", "Quantity": 200, "Unit": "cubic ft"},
     manual_prices = []
-
 if use_manual == "Enter Prices Manually":
     st.markdown("### Manual Price Entry")
 
